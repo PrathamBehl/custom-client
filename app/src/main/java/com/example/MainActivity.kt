@@ -26,6 +26,7 @@ import com.example.ui.screens.home.HomeScreen
 import com.example.ui.screens.library.LibraryScreen
 import com.example.ui.screens.player.VideoPlayerScreen
 import com.example.ui.screens.reader.MangaReaderScreen
+import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.social.SocialFeedScreen
 import com.example.ui.theme.LocalAppThemePreset
 import com.example.ui.theme.MyApplicationTheme
@@ -42,8 +43,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
-            val themePreset by viewModel.themePreset.collectAsStateWithLifecycle()
-            MyApplicationTheme(preset = themePreset) {
+            val themeState by viewModel.themeState.collectAsStateWithLifecycle()
+            MyApplicationTheme(themeState = themeState) {
                 AnimeSlateApp(viewModel = viewModel)
             }
         }
@@ -142,6 +143,10 @@ fun AnimeSlateApp(viewModel: MainViewModel) {
                             viewModel = viewModel,
                             isTablet = isTablet,
                             onMediaClick = { viewModel.openDetails(it) }
+                        )
+                        AppTab.SETTINGS -> SettingsScreen(
+                            viewModel = viewModel,
+                            isTablet = isTablet
                         )
                     }
                 }

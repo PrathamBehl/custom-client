@@ -51,12 +51,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -113,8 +115,16 @@ fun MediaDetailsScreen(
 ) {
     val allMedia by viewModel.allMedia.collectAsStateWithLifecycle()
     val userList by viewModel.userList.collectAsStateWithLifecycle()
+    val currentDetails by viewModel.currentMediaDetails.collectAsStateWithLifecycle()
+    val isLoadingDetails by viewModel.isLoadingMediaDetails.collectAsStateWithLifecycle()
 
-    val media = allMedia.find { it.id == mediaId } ?: return
+    LaunchedEffect(mediaId) {
+        viewModel.loadLiveMediaDetails(mediaId)
+    }
+
+    val media = (if (currentDetails?.id == mediaId) currentDetails else null)
+        ?: allMedia.find { it.id == mediaId }
+        ?: return
     val userEntry = userList.find { it.mediaId == mediaId }
     val vibe = rememberVibePalette(media)
     val preset = LocalAppThemePreset.current
@@ -597,6 +607,17 @@ fun MediaDetailsScreen(
                 }
             }
         }
+
+        if (isLoadingDetails) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding(),
+                color = preset.glow,
+                trackColor = Color.Transparent
+            )
+        }
     }
 
     // Add to List Dialog
@@ -631,11 +652,27 @@ private fun RelationCard(
     relation: MediaRelation,
     onClick: () -> Unit
 ) {
+    val isPrequel = relation.relationType.contains("PREQUEL", ignoreCase = true)
+    val isSequel = relation.relationType.contains("SEQUEL", ignoreCase = true)
+    val badgeColor = when {
+        isSequel -> CyanAniList
+        isPrequel -> AmberMAL
+        relation.relationType.contains("SIDE_STORY", ignoreCase = true) -> NeonPurple
+        else -> Color(0xFF64B5F6)
+    }
+
     Card(
         modifier = Modifier
-            .width(180.dp)
+            .width(184.dp)
             .clickable(onClick = onClick)
-            .border(1.dp, SlateBorder, RoundedCornerShape(10.dp)),
+            .border(1.dp, badgeColor.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .glowingBorder(
+                shape = RoundedCornerShape(10.dp),
+                glowColor = badgeColor,
+                glowRadius = 6.dp,
+                glowAlpha = 0.25f
+            )
+            .testTag("relation_card_${relation.id}"),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = SlateSurface)
     ) {
@@ -661,17 +698,19 @@ private fun RelationCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(NeonPurple.copy(alpha = 0.2f))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .background(badgeColor.copy(alpha = 0.2f))
+                        .border(0.5.dp, badgeColor.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = relation.relationType,
-                        color = NeonPurple,
+                        color = badgeColor,
                         fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = relation.title,
                     color = TextPrimary,

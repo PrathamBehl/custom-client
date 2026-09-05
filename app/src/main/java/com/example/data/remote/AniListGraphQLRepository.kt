@@ -27,6 +27,7 @@ class AniListGraphQLRepository(
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
     private val anilistUrl = "https://graphql.anilist.co"
+    val remoteRepo = AniListRepository()
 
     fun getAllMedia(): Flow<List<MediaEntity>> = mediaDao.getAllMedia()
 
@@ -203,5 +204,54 @@ class AniListGraphQLRepository(
             malSynced = true
         )
         userListDao.insertOrUpdate(entry)
+    }
+
+    suspend fun fetchMediaDetailsLive(mediaId: Int): MediaEntity? = withContext(Dispatchers.IO) {
+        val result = remoteRepo.fetchMediaDetails(mediaId)
+        if (result.isSuccess) {
+            val entity = result.getOrNull()
+            if (entity != null) {
+                mediaDao.insert(entity)
+                return@withContext entity
+            }
+        }
+        // Fallback to local DB or sample
+        return@withContext mediaDao.getMediaByIdDirect(mediaId)
+            ?: DefaultMediaCatalog.sampleMediaList.find { it.id == mediaId }
+    }
+
+    suspend fun fetchTrendingLive(): List<MediaEntity> = withContext(Dispatchers.IO) {
+        val result = remoteRepo.fetchTrendingAnime(1, 20)
+        if (result.isSuccess) {
+            val list = result.getOrNull() ?: emptyList()
+            if (list.isNotEmpty()) {
+                mediaDao.insertAll(list)
+                return@withContext list
+            }
+        }
+        return@withContext DefaultMediaCatalog.sampleMediaList
+    }
+
+    suspend fun fetchPopularMangaLive(): List<MediaEntity> = withContext(Dispatchers.IO) {
+        val result = remoteRepo.fetchPopularManga(1, 20)
+        if (result.isSuccess) {
+            val list = result.getOrNull() ?: emptyList()
+            if (list.isNotEmpty()) {
+                mediaDao.insertAll(list)
+                return@withContext list
+            }
+        }
+        return@withContext DefaultMediaCatalog.sampleMediaList.filter { it.format.equals("MANGA", ignoreCase = true) }
+    }
+
+    suspend fun fetchAiringScheduleLive(): List<com.example.data.model.ReleaseScheduleItem> = withContext(Dispatchers.IO) {
+        val result = remoteRepo.fetchAiringSchedule()
+        if (result.isSuccess) {
+            val list = result.getOrNull() ?: emptyList()
+            if (list.isNotEmpty()) {
+                return@withContext list
+            }
+        }
+        return@withContext DefaultMediaCatalog.sampleSchedule
     }
 }

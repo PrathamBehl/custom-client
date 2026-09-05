@@ -28,11 +28,13 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
@@ -74,7 +76,8 @@ val navigationItems = listOf(
     NavItem(AppTab.CALENDAR, "Calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
     NavItem(AppTab.DISCOVERY, "Discovery", Icons.Filled.Explore, Icons.Outlined.Explore),
     NavItem(AppTab.SOCIAL, "Social", Icons.Filled.Forum, Icons.Outlined.Forum),
-    NavItem(AppTab.LIBRARY, "Library", Icons.Filled.VideoLibrary, Icons.Outlined.VideoLibrary)
+    NavItem(AppTab.LIBRARY, "Library", Icons.Filled.VideoLibrary, Icons.Outlined.VideoLibrary),
+    NavItem(AppTab.SETTINGS, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 )
 
 @Composable

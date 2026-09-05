@@ -29,7 +29,8 @@ enum class AppTab {
     CALENDAR,
     DISCOVERY,
     SOCIAL,
-    LIBRARY
+    LIBRARY,
+    SETTINGS
 }
 
 data class UserStats(
@@ -62,11 +63,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _activeMangaReader = MutableStateFlow<Pair<MediaEntity, Int>?>(null)
     val activeMangaReader: StateFlow<Pair<MediaEntity, Int>?> = _activeMangaReader.asStateFlow()
 
-    // Multi-Theme Engine State
+    // Multi-Theme Engine & Contours State
+    private val _themeState = MutableStateFlow(com.example.ui.theme.ThemeState(com.example.ui.theme.ThemePreset.LIQUID_CHARCOAL, isGlowEnabled = true))
+    val themeState: StateFlow<com.example.ui.theme.ThemeState> = _themeState.asStateFlow()
     val themePreset = MutableStateFlow(com.example.ui.theme.ThemePreset.LIQUID_CHARCOAL)
 
     fun setThemePreset(preset: com.example.ui.theme.ThemePreset) {
+        _themeState.value = _themeState.value.copy(preset = preset)
         themePreset.value = preset
+    }
+
+    fun setGlowEnabled(enabled: Boolean) {
+        _themeState.value = _themeState.value.copy(isGlowEnabled = enabled)
+    }
+
+    // Dynamic Live Media Details State
+    private val _currentMediaDetails = MutableStateFlow<MediaEntity?>(null)
+    val currentMediaDetails: StateFlow<MediaEntity?> = _currentMediaDetails.asStateFlow()
+    val isLoadingMediaDetails = MutableStateFlow(false)
+
+    // AniList OAuth User Session
+    private val _aniListUser = MutableStateFlow<com.example.data.remote.AniListUser?>(null)
+    val aniListUser: StateFlow<com.example.data.remote.AniListUser?> = _aniListUser.asStateFlow()
+    val isAuthenticating = MutableStateFlow(false)
+    val authError = MutableStateFlow<String?>(null)
+
+    fun loginWithAniListToken(token: String) {
+        viewModelScope.launch {
+            isAuthenticating.value = true
+            authError.value = null
+            val result = repository.remoteRepo.verifyAndFetchViewer(token.trim())
+            if (result.isSuccess) {
+                val user = result.getOrNull()
+                _aniListUser.value = user
+                val prefs = getApplication<Application>().getSharedPreferences("ani_slate_prefs", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putString("anilist_token", token.trim()).apply()
+            } else {
+                authError.value = result.exceptionOrNull()?.message ?: "Authentication failed"
+            }
+            isAuthenticating.value = false
+        }
+    }
+
+    fun logoutAniList() {
+        _aniListUser.value = null
+        val prefs = getApplication<Application>().getSharedPreferences("ani_slate_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().remove("anilist_token").apply()
     }
 
     fun startMangaReading(media: MediaEntity, chapter: Int = 1) {
@@ -143,6 +185,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Preload default local catalog into Room immediately
         viewModelScope.launch {
             repository.preloadDefaultCatalog()
+            // Pull live AniList trending and calendar data in background
+            try {
+                repository.fetchTrendingLive()
+                val liveSchedule = repository.fetchAiringScheduleLive()
+                if (liveSchedule.isNotEmpty()) {
+                    releaseSchedule.value = liveSchedule
+                }
+            } catch (e: Exception) {
+                // Graceful fallback to default catalog
+            }
+        }
+
+        // Restore previously authenticated AniList token
+        val prefs = application.getSharedPreferences("ani_slate_prefs", android.content.Context.MODE_PRIVATE)
+        val savedToken = prefs.getString("anilist_token", null)
+        if (!savedToken.isNullOrBlank()) {
+            viewModelScope.launch {
+                val res = repository.remoteRepo.verifyAndFetchViewer(savedToken)
+                if (res.isSuccess) {
+                    _aniListUser.value = res.getOrNull()
+                }
+            }
         }
 
         // Debounced 200ms reactive search input
@@ -170,10 +234,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openDetails(mediaId: Int) {
         _selectedMediaId.value = mediaId
+        loadLiveMediaDetails(mediaId)
+    }
+
+    fun loadLiveMediaDetails(mediaId: Int) {
+        viewModelScope.launch {
+            isLoadingMediaDetails.value = true
+            // Instant cache hit
+            val cached = allMedia.value.find { it.id == mediaId }
+            if (cached != null) {
+                _currentMediaDetails.value = cached
+            }
+            // Fetch live AniList GraphQL details including relations & tags
+            val live = repository.fetchMediaDetailsLive(mediaId)
+            if (live != null) {
+                _currentMediaDetails.value = live
+            }
+            isLoadingMediaDetails.value = false
+        }
+    }
+
+    fun refreshTrendingAnime() {
+        viewModelScope.launch {
+            repository.fetchTrendingLive()
+        }
+    }
+
+    fun refreshPopularManga() {
+        viewModelScope.launch {
+            repository.fetchPopularMangaLive()
+        }
+    }
+
+    fun refreshSchedule() {
+        viewModelScope.launch {
+            val live = repository.fetchAiringScheduleLive()
+            if (live.isNotEmpty()) {
+                releaseSchedule.value = live
+            }
+        }
     }
 
     fun closeDetails() {
         _selectedMediaId.value = null
+        _currentMediaDetails.value = null
     }
 
     fun startPlaying(media: MediaEntity, episode: Int = 1) {

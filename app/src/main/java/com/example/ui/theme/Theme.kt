@@ -36,11 +36,13 @@ fun getThemeColorScheme(preset: ThemePreset) = darkColorScheme(
 @Composable
 fun MyApplicationTheme(
     preset: ThemePreset = ThemePreset.LIQUID_CHARCOAL,
+    themeState: ThemeState = ThemeState(preset),
     darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = getThemeColorScheme(preset)
+    val activePreset = themeState.preset
+    val colorScheme = getThemeColorScheme(activePreset)
     val view = LocalView.current
 
     if (!view.isInEditMode) {
@@ -54,7 +56,10 @@ fun MyApplicationTheme(
         }
     }
 
-    CompositionLocalProvider(LocalAppThemePreset provides preset) {
+    CompositionLocalProvider(
+        LocalThemeState provides themeState,
+        LocalAppThemePreset provides activePreset
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

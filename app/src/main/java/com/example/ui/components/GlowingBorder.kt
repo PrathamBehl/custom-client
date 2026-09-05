@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.LocalAppThemePreset
+import com.example.ui.theme.LocalThemeState
 
 /**
  * Ambient Gradient Glow Modifier:
@@ -36,9 +37,10 @@ fun Modifier.glowingBorder(
     glowAlpha: Float = 0.28f,
     enabled: Boolean = true
 ): Modifier {
-    if (!enabled) return this
+    val themeState = LocalThemeState.current
+    if (!enabled || !themeState.isGlowEnabled) return this
 
-    val activeGlow = if (glowColor.isSpecified) glowColor else LocalAppThemePreset.current.glow
+    val activeGlow = if (glowColor.isSpecified) glowColor else themeState.preset.glow
     val density = LocalDensity.current
 
     val strokePx = with(density) { strokeWidth.toPx() }

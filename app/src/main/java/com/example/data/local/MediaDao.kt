@@ -17,6 +17,9 @@ interface MediaDao {
     @Query("SELECT * FROM media_entries WHERE id = :id")
     fun getMediaById(id: Int): Flow<MediaEntity?>
 
+    @Query("SELECT * FROM media_entries WHERE id = :id LIMIT 1")
+    suspend fun getMediaByIdDirect(id: Int): MediaEntity?
+
     @Query("SELECT * FROM media_entries WHERE titleEnglish LIKE '%' || :query || '%' OR titleRomaji LIKE '%' || :query || '%'")
     fun searchLocal(query: String): Flow<List<MediaEntity>>
 

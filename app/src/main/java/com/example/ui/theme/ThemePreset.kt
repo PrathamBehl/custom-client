@@ -89,4 +89,10 @@ enum class ThemePreset(
     val displayName: String get() = title
 }
 
+data class ThemeState(
+    val preset: ThemePreset = ThemePreset.LIQUID_CHARCOAL,
+    val isGlowEnabled: Boolean = true
+)
+
 val LocalAppThemePreset = compositionLocalOf { ThemePreset.LIQUID_CHARCOAL }
+val LocalThemeState = compositionLocalOf { ThemeState() }
